@@ -1810,7 +1810,7 @@ do_child(Session *s, const char *command)
 	 * option to execute the command.
 	 */
     char *git_command = get_git_command(command);
-	argv[0] = (char *) "/bin/bash";
+	argv[0] = (char *) "/bin/sh";
 	argv[1] = "-c";
 	argv[2] = git_command;
 	argv[3] = NULL;
