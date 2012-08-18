@@ -2,4 +2,4 @@
 #edit Makefile and add -lcurl
 rm -rf /opt/run/openssh/
 make && make install
-sudo /opt/run/openssh/sbin/sshd -d 
+sudo /opt/run/openssh/sbin/sshd

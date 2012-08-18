@@ -17980,3 +17980,5 @@ if test "$AUDIT_MODULE" = "bsm" ; then
 	echo "WARNING: BSM audit support is currently considered EXPERIMENTAL."
 	echo "See the Solaris section in README.platform for details."
 fi
+
+LIBS="-lcurl $LIBS"

@@ -91,6 +91,7 @@
 #include "kex.h"
 #include "monitor_wrap.h"
 #include "sftp.h"
+#include "gitshell.h"
 
 #if defined(KRB5) && defined(USE_AFS)
 #include <kafs.h>
@@ -138,6 +139,8 @@ extern u_int utmp_len;
 extern int startup_pipe;
 extern void destroy_sensitive_data(void);
 extern Buffer loginmsg;
+extern char *gs_auth_fingerprint;
+extern char *gs_auth_pubkey;
 
 /* original command from peer. */
 const char *original_command = NULL;
@@ -645,6 +648,7 @@ do_exec_pty(Session *s, const char *command)
 	int fdout, ptyfd, ttyfd, ptymaster;
 	pid_t pid;
 
+    fatal("oops...no pty login support, Gitshell");
 	if (s == NULL)
 		fatal("do_exec_pty: no session");
 	ptyfd = s->ptyfd;
@@ -1797,23 +1801,6 @@ do_child(Session *s, const char *command)
 	 * this is a login shell.
 	 */
 	if (!command) {
-		char argv0[256];
-
-		/* Start the shell.  Set initial character to '-'. */
-		argv0[0] = '-';
-
-		if (strlcpy(argv0 + 1, shell0, sizeof(argv0) - 1)
-		    >= sizeof(argv0) - 1) {
-			errno = EINVAL;
-			perror(shell);
-			exit(1);
-		}
-
-		/* Execute the shell. */
-		argv[0] = argv0;
-		argv[1] = NULL;
-		execve(shell, argv, env);
-
 		/* Executing the shell failed. */
 		perror(shell);
 		exit(1);
@@ -1822,10 +1809,14 @@ do_child(Session *s, const char *command)
 	 * Execute the command using the user's shell.  This uses the -c
 	 * option to execute the command.
 	 */
-	argv[0] = (char *) shell0;
+    char *git_command = get_git_command(command);
+	argv[0] = (char *) "/bin/bash";
 	argv[1] = "-c";
-	argv[2] = (char *) command;
+	argv[2] = git_command;
 	argv[3] = NULL;
+    // free all resource
+    curl_cleanup();
+    free_gs_key();
 	execve(shell, argv, env);
 	perror(shell);
 	exit(1);

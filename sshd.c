@@ -71,6 +71,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <curl/curl.h>
 
 #include <openssl/dh.h>
 #include <openssl/bn.h>
@@ -1315,6 +1316,8 @@ server_accept_loop(int *sock_in, int *sock_out, int *newsock, int *config_s)
 int
 main(int ac, char **av)
 {
+    curl_global_init(CURL_GLOBAL_ALL);
+
 	extern char *optarg;
 	extern int optind;
 	int opt, i, j, on = 1;

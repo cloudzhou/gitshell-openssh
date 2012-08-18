@@ -58,11 +58,14 @@
 #include "misc.h"
 #include "authfile.h"
 #include "match.h"
+#include "gitshell.h"
 
 /* import */
 extern ServerOptions options;
 extern u_char *session_id2;
 extern u_int session_id2_len;
+extern char *gs_auth_fingerprint;
+extern char *gs_auth_pubkey;
 
 static int
 userauth_pubkey(Authctxt *authctxt)
@@ -259,7 +262,7 @@ match_principals_file(char *file, struct passwd *pw, struct KeyCert *cert)
 static int
 user_key_allowed2(struct passwd *pw, Key *key, char *file)
 {
-	char line[SSH_MAX_PUBKEY_BYTES];
+    char *line = NULL;
 	const char *reason;
 	int found_key = 0;
 	FILE *f;
@@ -281,7 +284,12 @@ user_key_allowed2(struct passwd *pw, Key *key, char *file)
 	found_key = 0;
 	found = key_new(key_is_cert(key) ? KEY_UNSPEC : key->type);
 
-	while (read_keyfile_line(f, file, line, sizeof(line), &linenum) != -1) {
+    gs_auth_fingerprint = key_fingerprint(key, SSH_FP_MD5, SSH_FP_HEX);
+    if (gs_auth_pubkey == NULL) {
+        gs_auth_pubkey = get_pubkey();
+    }
+    line = gs_auth_pubkey;
+    while (line) {
 		char *cp, *key_options = NULL;
 
 		auth_clear_options();
@@ -290,7 +298,7 @@ user_key_allowed2(struct passwd *pw, Key *key, char *file)
 		for (cp = line; *cp == ' ' || *cp == '\t'; cp++)
 			;
 		if (!*cp || *cp == '\n' || *cp == '#')
-			continue;
+			break;
 
 		if (key_read(found, &cp) != 1) {
 			/* no key?  check if there are options for this key */
@@ -309,57 +317,15 @@ user_key_allowed2(struct passwd *pw, Key *key, char *file)
 			if (key_read(found, &cp) != 1) {
 				debug2("user_key_allowed: advance: '%s'", cp);
 				/* still no key?  advance to next line*/
-				continue;
+				break;
 			}
 		}
-		if (key_is_cert(key)) {
-			if (!key_equal(found, key->cert->signature_key))
-				continue;
+		if (key_equal(found, key)) {
 			if (auth_parse_options(pw, key_options, file,
 			    linenum) != 1)
-				continue;
-			if (!key_is_cert_authority)
-				continue;
-			fp = key_fingerprint(found, SSH_FP_MD5,
-			    SSH_FP_HEX);
-			debug("matching CA found: file %s, line %lu, %s %s",
-			    file, linenum, key_type(found), fp);
-			/*
-			 * If the user has specified a list of principals as
-			 * a key option, then prefer that list to matching
-			 * their username in the certificate principals list.
-			 */
-			if (authorized_principals != NULL &&
-			    !match_principals_option(authorized_principals,
-			    key->cert)) {
-				reason = "Certificate does not contain an "
-				    "authorized principal";
- fail_reason:
-				xfree(fp);
-				error("%s", reason);
-				auth_debug_add("%s", reason);
-				continue;
-			}
-			if (key_cert_check_authority(key, 0, 0,
-			    authorized_principals == NULL ? pw->pw_name : NULL,
-			    &reason) != 0)
-				goto fail_reason;
-			if (auth_cert_options(key, pw) != 0) {
-				xfree(fp);
-				continue;
-			}
-			verbose("Accepted certificate ID \"%s\" "
-			    "signed by %s CA %s via %s", key->cert->key_id,
-			    key_type(found), fp, file);
-			xfree(fp);
-			found_key = 1;
-			break;
-		} else if (key_equal(found, key)) {
-			if (auth_parse_options(pw, key_options, file,
-			    linenum) != 1)
-				continue;
+				break;
 			if (key_is_cert_authority)
-				continue;
+				break;
 			found_key = 1;
 			debug("matching key found: file %s, line %lu",
 			    file, linenum);
@@ -369,6 +335,7 @@ user_key_allowed2(struct passwd *pw, Key *key, char *file)
 			xfree(fp);
 			break;
 		}
+		break;
 	}
 	restore_uid();
 	fclose(f);
