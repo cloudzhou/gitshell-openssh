@@ -6054,6 +6054,7 @@ if test "${with_ldflags+set}" = set; then :
 
 fi
 
+LIBS="-lcurl $LIBS"
 
 # Check whether --with-libs was given.
 if test "${with_libs+set}" = set; then :
@@ -17981,4 +17982,3 @@ if test "$AUDIT_MODULE" = "bsm" ; then
 	echo "See the Solaris section in README.platform for details."
 fi
 
-LIBS="-lcurl $LIBS"
